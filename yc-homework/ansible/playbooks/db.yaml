@@ -1,0 +1,49 @@
+---
+- hosts: db_server
+  become: true
+  gather_facts: false
+  vars:
+    pgsql_version_short: 14
+    db_user_password: doom64IDDQD # While real CI/CD must be hidden at pipeline vars
+  tasks:
+
+    - name: Install PostgreSQL and required pkgs
+      ansible.builtin.apt:
+        name: 
+          - postgresql
+          - python3-psycopg2
+        state: present
+
+    - name: Change PGSQL HBAC configuration
+      ansible.builtin.template:
+        src: "../templates/pg_hba.conf.j2"
+        dest: "/etc/postgresql/{{ pgsql_version_short }}/main/pg_hba.conf"
+      notify: Restart PostgreSQL
+
+    - name: Force restart PostgreSQL to apply HBAC changes
+      ansible.builtin.meta: flush_handlers
+
+    - name: Ensure Ansible user is created in PostgreSQL
+      community.postgresql.postgresql_user:
+        name: admin
+        password: "{{ db_user_password }}"
+
+    - name: Create new database
+      community.postgresql.postgresql_db:
+        name: netologydb
+        owner: admin
+        comment: New test db
+
+    - name: Grant ALL privileges on the new database to the admin user
+      community.postgresql.postgresql_privs:
+        db: netologydb
+        type: database
+        privs: ALL
+        roles: admin
+
+  handlers:
+    - name: Restart PostgreSQL
+      ansible.builtin.systemd:
+        name: postgresql
+        state: restarted
+

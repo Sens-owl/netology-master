@@ -1,0 +1,15 @@
+---
+- hosts: nginx_server
+  become: true
+  gather_facts: false
+  tasks: 
+
+    - name: Install NGINX
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+
+    - name: Check NGINX status
+      ansible.builtin.service:
+        name: nginx
+        state: started
